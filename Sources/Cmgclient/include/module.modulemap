@@ -1,0 +1,5 @@
+module Cmgclient {
+    header "mgclient-platform-headers.h"
+    header "mgclient-export.h"
+    export *
+}
