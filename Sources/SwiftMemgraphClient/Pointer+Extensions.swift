@@ -19,7 +19,13 @@ extension UnsafePointer {
     }
 }
 
-extension UnsafeRawPointer {
+extension UnsafeMutablePointer {
+    var opaque: OpaquePointer {
+        return OpaquePointer(self)
+    }
+}
+
+extension UnsafeMutableRawPointer {
     var opaque: OpaquePointer {
         return OpaquePointer(self)
     }

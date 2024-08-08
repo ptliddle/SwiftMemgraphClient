@@ -6,7 +6,7 @@
 //
 
 import XCTest
-import Cmgclient
+@testable import Cmgclient
 @testable import SwiftMemgraphClient
 import Foundation
 
@@ -27,55 +27,6 @@ extension Value: Equatable {
     }
 }
 
-final class MgMapTests: XCTestCase {
-//    func test_c_map_ToSwiftDictionary() {
-//        
-//        // Create sample C strings and values
-//        let sampleKey1 = "key1"
-//        let sampleKey2 = "key2"
-//        let sampleValue1 = c_mg_value.c_mg_value_type(rawValue: 42)
-//        let sampleValue2 = c_mg_value.c_mg_value_type(rawValue: 42)
-//        
-//        // Allocate memory for the C strings
-//        let cStringPointer1 = strdup(sampleKey1)
-//        let cStringPointer2 = strdup(sampleKey2)
-//        
-//        // Ensure the pointers are not nil
-//        XCTAssertNotNil(cStringPointer1)
-//        XCTAssertNotNil(cStringPointer2)
-//        
-//        // Create c_mg_string instances
-//        let mgString1 = mg_string(size: UInt32(strlen(sampleKey1)), data: cStringPointer1!)
-//        let mgString2 = mg_string(size: UInt32(strlen(sampleKey2)), data: cStringPointer2!)
-//        
-//        // Allocate memory for the keys and values arrays
-//        let keysArray = UnsafeMutablePointer<UnsafePointer<c_mg_string>?>.allocate(capacity: 2)
-//        let valuesArray = UnsafeMutablePointer<UnsafePointer<c_mg_value>?>.allocate(capacity: 2)
-//        
-//        // Assign the keys and values
-//        keysArray[0] = UnsafePointer(mgString1)
-//        keysArray[1] = UnsafePointer(mgString2)
-//        valuesArray[0] = UnsafePointer(sampleValue1)
-//        valuesArray[1] = UnsafePointer(sampleValue2)
-//        
-//        // Create an instance of c_mg_map
-//        let mgMap = mg_map(size: 2, capacity: 2, keys: UnsafePointer(keysArray), values: UnsafePointer(valuesArray))
-//        
-//        // Test the asDictionary property
-//        let expectedDictionary: [String: Value] = [
-//            sampleKey1: Value(intValue: 42),
-//            sampleKey2: Value(intValue: 84)
-//        ]
-//        XCTAssertEqual(mgMap.asDictionary, expectedDictionary)
-//        
-//        // Free the allocated memory
-//        free(cStringPointer1)
-//        free(cStringPointer2)
-//        keysArray.deallocate()
-//        valuesArray.deallocate()
-//    }
-}
-
 
 extension Value {
     func value<T>(as oType: T.Type) -> T? {
@@ -92,25 +43,16 @@ extension Value {
             return float as? T
         case .node(let node):
             return node as? T
+        case .relationship(let relatinship):
+            return relatinship as? T
         default:
-            fatalError("Type not defined")
+            fatalError("Type not currently defined for tests")
         }
     }
 }
 
 extension mg_string {
-//    static func from(_ stringValue: String) -> UnsafeMutablePointer<mg_string> {
-////        let stringPointer = UnsafeMutablePointer<String>.allocate(capacity: 1)
-////        stringPointer.pointee = stringValue
-//        
-//        let mgStringPointer = UnsafeMutablePointer<mg_string>.allocate(capacity: 1)
-//        let cStr = stringValue.cString(using: .utf8)!
-//        mgStringPointer.pointee.data = UnsafePointer(cStr)
-//        mgStringPointer.pointee.size = UInt32(cStr.count)
-//        
-//        return mgStringPointer
-//    }
-//    
+
     // Function to create an mg_string from a Swift string and return a pointer to it
     static func createMgString(from string: String) -> UnsafeMutablePointer<mg_string>? {
         // Convert the Swift string to a C string
@@ -171,125 +113,191 @@ final class CDataCreator {
 
 final class MgValueTests: XCTestCase {
     
-    func testAsValueBool() {
+    // MARK: Bool Tests
+    func testAsValueProducesTrueSwiftBool() {
         
-        // Check set to true
-        var boolValue: Bool = true
-        let boolPointer = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
-        boolPointer.pointee = boolValue
+        // Check converts true value correctly
+        let testBoolValue = true
+        // mg_value stores the bool as an Int32 so convert to that type before creating
+        let mgBoolValueCPointer = mg_value_make_bool(Int32(testBoolValue == true ? 1 : 0))
         
-        let mgValue = c_mg_value(type: .bool, value: UnsafeRawPointer(boolPointer))
+        let mgBoolValueSwiftPointer = UnsafePointer<c_mg_value>(mgBoolValueCPointer)
         
-        XCTAssertEqual(mgValue.asValue?.value(as: Bool.self), boolValue)
+        XCTAssertEqual(mgBoolValueSwiftPointer?.pointee.asValue?.value(as: Bool.self), testBoolValue)
+    }
+     
+    
+    func testAsValueProducesFalseSwiftBool() {
+        // Check converts false value correctly
+        let testBoolValue = false
+        let mgBoolValueCPointer = mg_value_make_bool(Int32(testBoolValue == true ? 1 : 0))
         
+        let mgBoolValueSwiftPointer = UnsafePointer<c_mg_value>(mgBoolValueCPointer)
         
-        // Check set to false
-        boolValue = false
-        boolPointer.pointee = boolValue
+        XCTAssertEqual(mgBoolValueSwiftPointer?.pointee.asValue?.value(as: Bool.self), testBoolValue)
         
-        let mgValue2 = c_mg_value(type: .bool, value: UnsafeRawPointer(boolPointer))
-        
-        XCTAssertEqual(mgValue2.asValue?.value(as: Bool.self), boolValue)
-        
-        boolPointer.deallocate()
     }
     
-    func testAsValueInt() {
-        let intValue: Int64 = 42
-        let intPointer = UnsafeMutablePointer<Int64>.allocate(capacity: 1)
-        intPointer.pointee = intValue
+    // MARK: Number tests
+    func testAsValueOnMgValueIntProducesSwiftIntValue() {
+        let testIntValue: Int64 = 42
+        let mgIntValueCPointer = mg_value_make_integer(testIntValue)
+        let mgIntValueSwiftPointer = UnsafePointer<mg_value>(mgIntValueCPointer)
         
-        let mgValue = c_mg_value(type: .integer, value: UnsafeRawPointer(intPointer))
-        let mgNumber = mgValue.asValue!.value(as: Int64.self)
-        XCTAssertEqual(mgNumber, intValue)
-        
-        intPointer.deallocate()
+        XCTAssertEqual(mgIntValueSwiftPointer?.pointee.asValue, Value.int(testIntValue))
     }
     
-    func testAsValueFloat() {
-        let floatValue: Double = 3.14
-        let floatPointer = UnsafeMutablePointer<Double>.allocate(capacity: 1)
-        floatPointer.pointee = floatValue
+    func testAsValueOnMgValueFloatProducesSwiftFloatValue() {
+        let testFloatValue: Double = Double.pi
+        let mgFloatValueCPointer = mg_value_make_float(testFloatValue)
+        let mgFloatValueSwiftPointer = UnsafePointer<mg_value>(mgFloatValueCPointer)
         
-        let mgValue = c_mg_value(type: .float, value: UnsafeRawPointer(floatPointer))
-        let mgFloat = mgValue.asValue!.value(as: Double.self)
-        
-        XCTAssertEqual(mgFloat, floatValue)
-        
-        floatPointer.deallocate()
+        XCTAssertEqual(mgFloatValueSwiftPointer?.pointee.asValue, Value.float(testFloatValue))
     }
     
-    func testAsValueString() {
+    // MARK: String tests
+    func testAsValueOnMgStringValueProducesSwiftString() {
         
         let stringValue: String = "Hello, World!"
-//        let stringPointer = UnsafeMutablePointer<String>.allocate(capacity: 1)
-//        stringPointer.pointee = stringValue
-//        
-//        let mgStringPointer = UnsafeMutablePointer<mg_string>.allocate(capacity: 1)
-//        let cStr = stringValue.cString(using: .utf8)!
-//        mgStringPointer.pointee.data = withUnsafePointer(to: cStr, { $0.pointee })
-//        mgStringPointer.pointee.size = UInt32(cStr.count)
-        
         let mgStringPointerB = mg_string.createMgString(from: stringValue)
         
         let mgValue = c_mg_value(type: .string, value: UnsafeRawPointer(mgStringPointerB!))
         
         XCTAssertEqual(mgValue.asValue!.value(as: String.self), stringValue)
-
-        mgStringPointerB!.deallocate()
-//        stringPointer.deallocate()
     }
     
-    #warning("Get this working, need to figure out how to get the right pointer into the mg_node labels and properties")
-    func testAsValueNode() {
+    // MARK: Complex values tests
+
+
+    private func createMockPropertiesForTest(props: [String: Value]) -> UnsafeMutablePointer<mg_map> {
+ 
+        let props = props.mapValues { propValue in
+            switch propValue {
+            case let .int(intValue):
+                mg_value_make_integer(intValue)
+            case let .float(floatValue):
+                mg_value_make_float(Double.pi)
+            case let .string(stringValue):
+                mg_value_make_string(stringValue.asCStr)
+            default:
+                fatalError("Not implemented in test")
+            }
+        }
         
+        let cPropMapOp = mg_map_make_empty(UInt32(props.count))
+        for (key, value) in props {
+            mg_map_insert(cPropMapOp, key.asCStr, value)
+        }
+        
+        
+        let cPropMap = UnsafeMutablePointer<mg_map>(cPropMapOp)
+        
+        return cPropMap!
+    }
+    
+    private func createMockLabelsForTest(labels: [String]) -> UnsafeMutablePointer<UnsafeMutablePointer<mg_string>?> {
+        
+        func toCPointerArray<T, S>(vec: [T], convertFun: (T) -> UnsafeMutablePointer<S>) -> UnsafeMutablePointer<UnsafeMutablePointer<S>?> {
+            let ptr = UnsafeMutablePointer<UnsafeMutablePointer<S>?>.allocate(capacity: vec.count)
+            for (i, el) in vec.enumerated() {
+                ptr[i] = convertFun(el)
+            }
+            return ptr
+        }
+
+        func toArrayOfStrings(vec: [String]) -> UnsafeMutablePointer<UnsafeMutablePointer<mg_string>?> {
+            return toCPointerArray(vec: vec) { el in
+                mg_string.createMgString(from: el)!
+            }
+        }
+        
+        return toArrayOfStrings(vec: labels)
+    }
+    
+    func testAsValueOnMgNodeProducesSwiftNode() {
         
         let mockId: Int64 = 38927138
         
         // Create an array of mg_strings strings
         let labelStrings = ["Label1", "Label2", "Label3", "VeryVeryLongLabelToCheckIt'sAPointer", "FinalLabelOnNode"]
+
+        // Create a dictionary of properties for testing
+        let props: [String: Value] = [
+            "PropKeyA": .float(Double.pi),
+            "PropKeyB": .string("TestPropertyBValue"),
+            "PropKeyC": .int(42)
+        ]
         
-//        var labelBufferPointer = UnsafeMutableBufferPointer<mg_string>.allocate(capacity: labelStrings.count)
-//        
-//        labelStrings.enumerated().forEach { element in
-//            let (index, string) = element
-//            let p_mg_string = mg_string.createMgString(from: string)
-//            guard let mg_string = p_mg_string?.pointee else { fatalError("Failed to make mg_string") }
-//            labelBufferPointer.baseAddress?.advanced(by: index).pointee = mg_string
-//        }
-//        
-//        let mgStringsPointer = mg_string.mg_string_list(from: labelStrings)
-//
-//        labelStrings.enumerated().forEach { element in
-//            let (i, _ ) = element
-//            print(labelBufferPointer.baseAddress?.advanced(by: i).pointee)
-//            print(mgStringsPointer.baseAddress?.advanced(by: i).pointee)
-//        }
-//        
-//        var mg_string_list = mg_string.mgListArray(from: mgStringsPointer, noItems: labelStrings.count)
-//        print(mg_string_list)
-//        
-//        let labelPointer = UnsafeMutablePointer<UnsafeMutablePointer<mg_string>?>(OpaquePointer(mgStringsPointer.baseAddress!))
         
-        let labelsCArrayPointer = CDataCreator.stringArrayToMgStringCArray(strings: labelStrings)
-        guard let op = OpaquePointer(labelsCArrayPointer.baseAddress) else { fatalError("Opaque Pointer to labels failed") }
+        let cPropMap = createMockPropertiesForTest(props: props)
         
-        let mg_node = mg_node(id: mockId, labelCount: UInt32(labelStrings.count), labels: UnsafeMutablePointer<Optional<UnsafeMutablePointer<c_mg_string>>>(op))
+        let cMgNode = UnsafeMutablePointer<mg_node>.allocate(capacity: 1)
+        cMgNode.pointee.id = mockId
+        cMgNode.pointee.labelCount = UInt32(labelStrings.count)
+        cMgNode.pointee.labels = createMockLabelsForTest(labels: labelStrings)
+        cMgNode.pointee.properties = cPropMap
         
-        let mg_value = c_mg_value(type: .node, value: withUnsafePointer(to: mg_node, {$0}))
+        let mgValueNode = mg_value_make_node(cMgNode.opaque)
+        let nodePoint = UnsafePointer<mg_value>(mgValueNode)?.pointee.value
         
-        let mgValue = mg_value.asValue!
-        let node = mgValue.value(as: Node.self)
-        XCTAssertEqual(node!.id, mockId)
-//        XCTAssertEqual(node!.labelCount, labelStrings.count)
-        XCTAssertEqual(node!.labels, labelStrings)
+        guard let swiftNodeValue = mgValueNode?.to(mg_value.self).pointee.asValue as? Value else {
+            XCTFail("Could not convert mg_value to swift value")
+            return
+        }
+        
+        guard let swiftNode = swiftNodeValue.value(as: Node.self) else {
+            XCTFail("Could not get node from value")
+            return
+        }
+        
+        XCTAssertEqual(swiftNode.id, mockId)
+        XCTAssertEqual(swiftNode.labelCount, UInt32(labelStrings.count))
+        XCTAssertEqual(swiftNode.labels, labelStrings)
+        XCTAssertEqual(swiftNode.properties, props)
+    }
+    
+    
+    func testAsValueOnMgRelationshipProducesSwiftRelationship() {
+        
+        let mockId: Int64 = 46457867342
+        let startId: Int64 = 38927138
+        let endId: Int64 = 281947498237
+        let relationshipType = "TestTypeRelationship"
+        
+        // Create an array of mg_strings strings
+        let labelStrings = ["Label1", "Label2", "Label3", "VeryVeryLongLabelToCheckIt'sAPointer", "FinalLabelOnNode"]
+
+        // Create a dictionary of properties for testing
+        let props: [String: Value] = [
+            "PropKeyA": .float(Double.pi),
+            "PropKeyB": .string("TestPropertyBValue"),
+            "PropKeyC": .int(42)
+        ]
+        
+        let cMgRelationship = mg_relationship(id: mockId, start_id: startId, end_id: endId, type: mg_string.createMgString(from: relationshipType)!,  properties: createMockPropertiesForTest(props: props))
+        let mgValueNode = mg_value_make_relationship(withUnsafePointer(to: cMgRelationship, {$0.opaque}))
+        
+        guard let swiftRelationshipValue = mgValueNode?.to(mg_value.self).pointee.asValue as? Value else {
+            XCTFail("Could not convert mg_value to swift value")
+            return
+        }
+        
+        guard let swiftRelationship = swiftRelationshipValue.value(as: Relationship.self) else {
+            XCTFail("Could not get node from value")
+            return
+        }
+        
+        XCTAssertEqual(swiftRelationship.id, mockId)
+        XCTAssertEqual(swiftRelationship.startId, startId)
+        XCTAssertEqual(swiftRelationship.endId, endId)
+        XCTAssertEqual(swiftRelationship.type, relationshipType)
+        XCTAssertEqual(swiftRelationship.properties, props)
     }
 }
-
+ 
 
 final class MgStringTests: XCTestCase {
   
-    #warning("This doesn't seem to be working correctly")
     func testMgStringNotNullTerminatedToSwiftString() {
         
         let sampleCString = "Hello, World! Not Null Terminated"
@@ -333,90 +341,5 @@ final class MgStringTests: XCTestCase {
         
         // Free the allocated memory
         free(cStringPointer)
-    }
-    
-    
-    func testMgStringCArrayToSwiftArray() {
-        let testStrings = ["Item 1", "Test String That's Slightly Longer", "Another Test String"]
-        let mgStringCArrayPointer = CDataCreator.stringArrayToMgStringCArray(strings: testStrings )
-        let op = OpaquePointer(mgStringCArrayPointer.baseAddress)
-        let outputSwiftStrings = CToSwiftConverter.mg_stringCArrayToSwiftArray(mg_stringCArrayPointer: op!, itemCount: testStrings.count)
-        
-        XCTAssertEqual(testStrings[0], outputSwiftStrings[0])
-        XCTAssertEqual(testStrings[1], outputSwiftStrings[1])
-        XCTAssertEqual(testStrings[2], outputSwiftStrings[2])
-    }
-    
-}
-
-/// Tests to check the values map correctly from C to Swift and vice versa
-final class ValuesTests: XCTestCase {
-    
-//    func testCheckPropertiesMapFromCToSwiftDict() {
-//        
-//        // Create mock keys
-//        let key1 = mg_string(size: .max, data: ("key1" as NSString).utf8String!)
-//        let key2 = mg_string(size: .max, data: ("key2" as NSString).utf8String!)
-//        let key3 = mg_string(size: .max, data: ("key3" as NSString).utf8String!)
-//        let keys = [key1, key2, key3]
-//            
-//        // Create mock values
-//        let val1 = 42
-//        let value1 = c_mg_value(type: .integer, value: withUnsafePointer(to: val1, {$0}))
-//        let val2 = Float(3.14)
-//        let value2 = c_mg_value(type: .float, value: withUnsafePointer(to: val2, {$0}))
-//        let val3 = "TestValue"
-//        let value3 = c_mg_value(type: .string, value: withUnsafePointer(to: val3, {$0}))
-//        let values = [value1, value2, value3]
-//        
-//        // Convert arrays to UnsafePointer
-////        let keysPointer = withUnsafePointer(to: keys, {$0})
-////        let valuesPointer = withUnsafePointer(to: values, {$0})
-//        let keysPointer = keys.withUnsafeBufferPointer({ $0.baseAddress! })
-//        let valuesPointer = values.withUnsafeBufferPointer({ $0.baseAddress! })
-//        
-//        // Create c_mg_map instance
-//        let map = c_mg_map(size: UInt32(values.count), capacity: UInt32(values.count), keys: keysPointer, values: valuesPointer)
-//        
-//        // Convert to dictionary
-//        let dictionary = map.asDictionary
-//        
-//        // Expected dictionary
-//        let expectedDictionary: [String: Value] = [
-//            "key1": .int(42),
-//            "key2": .date(Date.now),
-//            "key3": .string("TestValue")
-//        ]
-//        
-//        // Assert equality
-//        XCTAssertEqual(dictionary.count, expectedDictionary.count)
-//        expectedDictionary.forEach { element in
-//            let (key, value) = element
-//            XCTAssertEqual(value, dictionary[key])
-//        }
-//    }
-    
-//    func testCheckPropertiesMapFromCToSwiftDict() {
-//        
-//        let testDictionary = [
-//            "keyA": Value.string("Test Value A"),
-//            "keyB": Value.bool(false),
-//            "keyC": Value.int(45)
-//        ]
-//        
-//        let capacity = UInt32.max // Not used by swift
-//        
-//        let keysAsMsg = [String](testDictionary.keys).map({ x in
-//            let cString = strToCStr(x)
-//            return mg_string(size: .max, data: cString)
-//        })
-//        
-//        let keys = withUnsafePointer(to: keysAsMsg, { $0 })
-//        let values = withUnsafePointer(to: testDictionary.values, { $0 })
-//        
-//        let cMap = c_mg_map(size: UInt32(testDictionary.count), capacity: capacity, keys: keys, values: values)
-//        
-//        
-//    }
-    
+    }    
 }

@@ -13,13 +13,11 @@ import Cmgclient
 /// These tests require a connection to a live database instance
 /// You can change the parameters below to point to a different endpoint or fire up a default memgraph docker container and connect with the default parameters
 ///
+///These tests are designed for use during development and not when running a test suite
+///
 final class ConnectionTests: XCTestCase {
 
-    func testMgClientConnects() throws {
-        let connectParams = ConnectParams(host: "localhost")
-        let mgclient = try Connection.connect(params: connectParams)
-        XCTAssertEqual(mgclient.status, ConnectionStatus.ready)
-    }
+    // MARK: - Test helper methods
     
     private func getReadyConnection(lazyFetch: Bool = false) throws -> Connection {
         let connectParams = ConnectParams(host: "localhost", lazy: lazyFetch, autocommit: true)
@@ -27,6 +25,17 @@ final class ConnectionTests: XCTestCase {
         XCTAssertEqual(mgConnection.status, ConnectionStatus.ready)
         return mgConnection
     }
+    
+    
+    // MARK: - Tests
+    func testMgClientConnects() throws {
+        let connectParams = ConnectParams(host: "localhost")
+        let mgclient = try Connection.connect(params: connectParams)
+        XCTAssertEqual(mgclient.status, ConnectionStatus.ready)
+    }
+    
+
+    // MARK: - Skipped tests for use during development
     
     func testMgClientExecuteQueryAndFetchAll() throws {
         
@@ -44,8 +53,6 @@ final class ConnectionTests: XCTestCase {
         let query = String("MATCH (n) RETURN (n);");
         let result = try connection.execute(query: query, params: [:])
         print(result)
-        
-//        let record = connection.nextRecord()
         
         print(record)
     }
@@ -67,7 +74,6 @@ final class ConnectionTests: XCTestCase {
         // Fetch the graph.
         let query = "MATCH (n)-[r]->(m) RETURN n, r, m;"
         let columns = try connection.execute(query: "MATCH (n)-[r]->(m) RETURN n, r, m;", params: nil)
-//        let columns = try connection.executeWithoutResults(query: query)
         print("Columns: \(columns.isEmpty ? "None": columns.joined(separator: ", "))")
         
         for record in try connection.fetchall() {
@@ -75,18 +81,6 @@ final class ConnectionTests: XCTestCase {
                 print(value)
             }
         }
-        
-//        let records = try connection.fetchmany(size: 10)
-//
-//        for record in try connection.fetchall() {
-//            for value in record.values {
-//                print(value)
-//            }
-//        }
-//        
-//        if let nextRecord = connection.nextRecord() {
-//            print(nextRecord.values)
-//        }
     }
     
     func testCreateSimpleGraphAndRetrieve() throws {
@@ -120,5 +114,4 @@ final class ConnectionTests: XCTestCase {
         }
         try connection.commit()
     }
-    
 }

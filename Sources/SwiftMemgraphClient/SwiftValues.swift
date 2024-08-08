@@ -1,11 +1,14 @@
 //
 //  SwiftValues.swift
-//  This file defines basic datatypes for working with memgraph, these are designed to work well in Swift and values are converted from C structs from bound library to these types
+//  This file defines basic Swift datatypes for working with memgraph.
+//  These are seperate and disticnt from the C value data types (CValues.swift) that are purely defined for reading (and writing) to a from the wrapped C library
+//  all data should be converted from those types to a Swift type defined here before being utilized by an end consumer of the Swift library
 //
 //  Created by Peter Liddle on 8/5/24.
 //
 
 import Foundation
+import Cmgclient
 
 // Representation of Bolt value returned by database.
 public enum Value: CustomStringConvertible {
@@ -62,6 +65,43 @@ public enum Value: CustomStringConvertible {
     }
 }
 
+extension Value {
+    public var asCMgValue: OpaquePointer? {
+        switch self {
+        case .null:
+            return mg_value_make_null()
+        case .bool(let value):
+            return mg_value_make_bool(value == true ? 1 : 0)
+        case .int(let value):
+            return mg_value_make_integer(value)
+        case .float(let value):
+            return mg_value_make_float(value)
+        case .string(let value):
+            return mg_value_make_string(value)
+        case .date(let value):
+            fatalError("Date to mg date value needs implementing")
+        case .localTime(let value):
+            fatalError("Date to localTime value needs implementing")
+        case .localDateTime(let value):
+            fatalError("Date to localDate value needs implementing")
+        case .duration(let value):
+            fatalError("Date to duration value needs implementing")
+        case .list(let value):
+            fatalError("needs implementing")
+        case .map(let value):
+            fatalError("needs implementing")
+        case .node(let node):
+            fatalError("needs implementing")
+        case .relationship(let edge):
+            fatalError("needs implementing")
+        case .unboundRelationship(let value):
+            fatalError("needs implementing")
+        case .path(let value):
+            fatalError("needs implementing")
+        }
+    }
+}
+
 extension Value: Equatable {
     public static func ==(lhs: Value, rhs: Value) -> Bool {
         switch (lhs, rhs) {
@@ -87,15 +127,14 @@ extension Value: Equatable {
             return lhsValue == rhsValue
         case (.map(let lhsValue), .map(let rhsValue)):
             return lhsValue == rhsValue
-#warning("Implement comparison for types below by adding == on those types")
-            //        case (.node(let lhsValue), .node(let rhsValue)):
-            //            return lhsValue == rhsValue
-            //        case (.relationship(let lhsValue), .relationship(let rhsValue)):
-            //            return lhsValue == rhsValue
-            //        case (.unboundRelationship(let lhsValue), .unboundRelationship(let rhsValue)):
-            //            return lhsValue == rhsValue
-            //        case (.path(let lhsValue), .path(let rhsValue)):
-            //            return lhsValue == rhsValue
+        case (.node(let lhsValue), .node(let rhsValue)):
+            return lhsValue == rhsValue
+        case (.relationship(let lhsValue), .relationship(let rhsValue)):
+            return lhsValue == rhsValue
+        case (.unboundRelationship(let lhsValue), .unboundRelationship(let rhsValue)):
+            return lhsValue == rhsValue
+        case (.path(let lhsValue), .path(let rhsValue)):
+            return lhsValue == rhsValue
         default:
             return false
         }
@@ -109,7 +148,7 @@ public struct Record {
 
 
 // Representation of node value from a labeled property graph.
-public struct Node: CustomStringConvertible {
+public struct Node: CustomStringConvertible, Equatable {
     
     static let empty = Node(id: 0, labelCount: 0, labels: [], properties: [:])
     
@@ -124,7 +163,7 @@ public struct Node: CustomStringConvertible {
 }
 
 // Representation of relationship value from a labeled property graph.
-public struct Relationship: CustomStringConvertible {
+public struct Relationship: CustomStringConvertible, Equatable {
     
     static let empty = Relationship(id: 0, startId: 0, endId: 0, type: "", properties: [:])
     
@@ -140,7 +179,7 @@ public struct Relationship: CustomStringConvertible {
 }
 
 // Representation of relationship from a labeled property graph.
-public struct UnboundRelationship: CustomStringConvertible {
+public struct UnboundRelationship: CustomStringConvertible, Equatable {
     
     static let empty = UnboundRelationship(id: 0, type: "", properties: [:])
     
@@ -154,7 +193,7 @@ public struct UnboundRelationship: CustomStringConvertible {
 }
 
 // Representation of sequence of alternating nodes and relationships corresponding to a walk in a labeled property graph.
-public struct Path: CustomStringConvertible {
+public struct Path: CustomStringConvertible, Equatable {
     
     static let empty = Path(nodeCount: 0, relationshipCount: 0, nodes: [], relationships: [])
     

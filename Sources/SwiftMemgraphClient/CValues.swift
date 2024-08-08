@@ -1,9 +1,15 @@
 //
 //  CValues.swift
-//  This class defines all the values that the C library uses in Swift format. Note this should define pure C library types in Swift, it shouldn't add methods, those should be added as
-//  extensions in CTypeConversion+Extensions to seperate the C structure definitions from data handling and conversion
+//  This class defines all the values that the underliying C library (mgclient) uses, in a Swift format. Note this should define pure C library types in Swift, it shouldn't add methods, those should be added as
+//  extensions in CTypeConversion+Extensions to seperate the C structure definitions from data handling and conversion.
 //
-//  NOTE: It might be possible to elimnate this file by exporting the values in values.h in the underlying C library, but the file system needs to be flattened for it to find client.h and so compile properly
+//  TODO:
+//  It maybe possible to remove this file by altering how the C library (mgclient) this Swift library wraps is built to export the underlying C values.
+//  At the moment mgvalue.h is in a different directory to the mgclient.h which it references during build time so trying to export mgvalue.h causes
+//  the building of the C libary to fail. However it should be possible to create a virtual file system during build so that all the headers appear in the
+//  same directory and can reference each other. It should then be possible to add value.h as one of the exported headers.
+//
+//  SEE: Section "Importing SQLite into Swift" at https://www.swift.org/documentation/articles/wrapping-c-cpp-library-in-swift.html specifcally the part referencing VFS (The virtual filesystem)
 //
 //  Created by Peter Liddle on 8/4/24.
 //
@@ -119,6 +125,7 @@ struct c_mg_map: HasOpagueCPointer {
 typealias mg_map = c_mg_map
 
 // Representation of parameter value used in query.
+#warning("QueryParam has not yet been utilized or tested, needs work")
 public enum QueryParam {
     case null
     case bool(Bool)
@@ -145,25 +152,23 @@ public enum QueryParam {
         case .string(let value):
             return UnsafeMutablePointer(mg_value_make_string(value.asCStr))
         case .date(let value):
-            let oPointer = OpaquePointer(dateToMgDate(value))
+            let oPointer = OpaquePointer(SwiftToCConverter.dateToMgDate(value))
             return UnsafeMutablePointer(mg_value_make_date(oPointer))
         case .localTime(let value):
-            let oPointer = OpaquePointer(timeToMgLocalTime(value))
+            let oPointer = OpaquePointer(SwiftToCConverter.timeToMgLocalTime(value))
             return UnsafeMutablePointer(mg_value_make_local_time(oPointer))
         case .localDateTime(let value):
-            let oPointer = OpaquePointer(dateTimeToMgLocalDateTime(value))
+            let oPointer = OpaquePointer(SwiftToCConverter.dateTimeToMgLocalDateTime(value))
             return UnsafeMutablePointer(mg_value_make_local_date_time(oPointer))
         case .duration(let value):
-            let oPointer = OpaquePointer(durationToMgDuration(value))
+            let oPointer = OpaquePointer(SwiftToCConverter.durationToMgDuration(value))
             return UnsafeMutablePointer(mg_value_make_duration(oPointer))
         case .list(let value):
-            print("Convert list")
+            fatalError("Convert list not yet implemented")
 //            let oPointer = OpaquePointer(mg_value_make_list(vectorToMgList(value)))
-            return UnsafeMutablePointer(.init(bitPattern: 0))!
         case .map(let value):
-            print("Convert map")
+            fatalError("Convert list not yet implemented")
 //            let oPointer = OpaquePointer(mg_value_make_map(hashMapToMgMap(value)))
-            return UnsafeMutablePointer(.init(bitPattern: 0))!
         default:
             break
         }
@@ -259,120 +264,3 @@ public struct c_mg_value {
     var value: UnsafeRawPointer
 }
 typealias mg_value = c_mg_value
-
-//func cStringToString(_ cString: UnsafePointer<CChar>?, _ length: Int?) -> String {
-//    return String(cString: cString!)
-//}
-
-func dateToMgDate(_ date: Date) -> UnsafeMutablePointer<mg_date> {
-    // Convert Date to mg_date
-    // Implementation depends on the specific C API
-    
-    print("convert date")
-    
-    // Get the number of seconds since the Unix epoch
-    let secondsSinceEpoch = date.timeIntervalSince1970
-    
-    // Convert seconds to nanoseconds
-    var nanosecondsSinceEpoch = Int64(secondsSinceEpoch) * 1_000_000_000
-    
-    return withUnsafeMutablePointer(to: &nanosecondsSinceEpoch) { $0 }
-}
-
-func timeToMgLocalTime(_ time: Date) -> UnsafeMutablePointer<mg_local_time> {
-    // Convert Date to mg_local_time
-    // Implementation depends on the specific C API
-    print("convert local time")
-    // Get the number of seconds since the Unix epoch
-    let secondsSinceEpoch = time.timeIntervalSince1970
-    
-    // Convert seconds to nanoseconds
-    var nanosecondsSinceEpoch = Int64(secondsSinceEpoch) * 1_000_000_000
-    
-    // Return the nanoseconds as mg_local_time
-    return withUnsafeMutablePointer(to: &nanosecondsSinceEpoch) { $0 }
-}
-
-func dateTimeToMgLocalDateTime(_ dateTime: Date) -> UnsafeMutablePointer<mg_local_date_time> {
-    // Convert Date to mg_local_date_time
-    // Implementation depends on the specific C API
-    print("convert local date time")
-    
-    // Get the number of seconds since the Unix epoch
-    let secondsSinceEpoch = dateTime.timeIntervalSince1970
-    
-    // Convert seconds to nanoseconds
-    let nanosecondsSinceEpoch = Int64(secondsSinceEpoch) * 1_000_000_000
-    
-    var localDateTime = MgLocalDateTime(seconds: Int64(dateTime.timeIntervalSince1970), nanoseconds: nanosecondsSinceEpoch)
-    
-    return withUnsafeMutablePointer(to: &localDateTime) { $0 }
-}
-
-func durationToMgDuration(_ duration: TimeInterval) -> UnsafeMutablePointer<mg_duration> {
-    // Convert TimeInterval to mg_duration
-    // Implementation depends on the specific C API
-    
-    let calendar = Calendar.current
-    let referenceDate = Date.timeIntervalSinceReferenceDate
-    let durationDate = Date(timeIntervalSince1970: duration)
-    
-    // Calculate the difference in components
-    let components = calendar.dateComponents([.month, .day, .second, .nanosecond], from: durationDate)
-    
-    // Extract the components
-    let months = Int64(components.month ?? 0)
-    let days = Int64(components.day ?? 0)
-    let seconds = Int64(components.second ?? 0)
-    let nanoseconds = Int64(components.nanosecond ?? 0)
-    
-    var swiftDuration = MgDuration(months: months, days: days, seconds: seconds, nanoseconds: nanoseconds)
-    
-    return withUnsafeMutablePointer(to: &swiftDuration) { $0 }
-}
-
-func vectorToMgList(_ vector: [QueryParam]) -> UnsafeMutablePointer<mg_list> {
-    // Convert [QueryParam] to mg_list
-    // Implementation depends on the specific C API
-    
-//    vector.map({ $0.toCMgValue() })
-    
-    print("vector to list")
-    
-    // For now, return a nil pointer
-    return UnsafeMutablePointer<mg_list>(bitPattern: 0)!
-}
-
-extension mg_map {
-    
-    // Function to convert Swift Dictionary to mg_map
-    public static func from(_ dictionary: [String: QueryParam]) -> UnsafeMutablePointer<mg_map>? {
-   
-        let size = UInt32(dictionary.count)
-        var mg_map = mg_map_make_empty(size)
-    
-        for (key, val) in dictionary {
-            var val = val
-            let op = OpaquePointer(withUnsafeMutablePointer(to: &val, { $0 }))
-            mg_map_insert(mg_map, key.asCStr, op)
-        }
-        
-        return UnsafeMutablePointer(mg_map)
-    }
-
-}
-
-//func hashMapToMgMap(_ hashMap: [String: QueryParam]) -> UnsafeMutablePointer<mg_map> {
-//    // Convert [String: QueryParam] to mg_map
-//    // Implementation depends on the specific C API
-//    
-//    print("dictionary to list")
-//    
-//    // For now, return a nil pointer
-//    return UnsafeMutablePointer<mg_map>(bitPattern: 0)!
-//}
-
-// Define other necessary types and functions like mg_value, mg_date, mg_local_time, mg_local_date_time, mg_duration, mg_list, mg_map, etc.
- 
- 
-//

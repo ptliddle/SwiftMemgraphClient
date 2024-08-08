@@ -56,12 +56,20 @@ struct CToSwiftConverter {
             let nodePointer = value.assumingMemoryBound(to: c_mg_node.self)
             let cValue = nodePointer.pointee
             
-            var labels = [String]()
-            if let labelsCArrayPointer = cValue.labels.pointee {
-                labels = CToSwiftConverter.mg_stringCArrayToSwiftArray(mg_stringCArrayPointer: OpaquePointer(labelsCArrayPointer), itemCount: Int(cValue.labelCount))
-                print(labels)
-            }
+//            var labels = [String]()
+//            if let labelsCArrayPointer = cValue.labels.pointee {
+//                labels = CToSwiftConverter.mg_stringCArrayToSwiftArray(mg_stringCArrayPointer: OpaquePointer(labelsCArrayPointer), itemCount: Int(cValue.labelCount))
+//                print(labels)
+//            }
             
+            let labels = mgCNodeLabelsToSwiftStringArray(mgNodePointer: nodePointer.opaque)
+            
+//            let properties = {
+//               
+//                let propPointer = mg_node_properties(opNodePointer)
+//                let mgNodeProps = propPointer?.to(c_mg_properties.self)
+//            }()
+//            
             let properties = cValue.properties?.pointee.asDictionary ?? [:]
             print(properties)
             
@@ -95,31 +103,46 @@ struct CToSwiftConverter {
         }
     }
     
-    /// Converts a c pointer to an array or mg_strings to a Swift array of mg_strings. Only used internally, you should use mg_stringCArrayToSwiftArray instead which returns array of swift strings
-    /// - Parameters:
-    ///   - mg_stringCArrayPointer: pointer to the mg_string array in C
-    ///   - itemCount: no of items in the array
-    /// - Returns: a Swift Array of mg_string objects
-    internal static func mg_stringCArrayToMgStringSwiftArray(mg_stringCArrayPointer: OpaquePointer, itemCount: Int) -> Array<mg_string> {
-
-        let mgStringStartPointer = UnsafeMutablePointer<mg_string>(mg_stringCArrayPointer)
-        let labelsBufferPointer = UnsafeMutableBufferPointer(start: mgStringStartPointer, count: itemCount)
-
-        var swiftArray = Array<mg_string>()
-
-        for i in 0..<itemCount {
-            guard let x = labelsBufferPointer.baseAddress?.advanced(by: Int(i)) else { continue }
-            swiftArray.append(x.pointee)
+    internal static func mgCNodeLabelsToSwiftStringArray(mgNodePointer: OpaquePointer) -> Array<String> {
+        
+        let cMgNode = UnsafeRawPointer(mgNodePointer).load(as: mg_node.self)
+        
+        var strings = [String]()
+        
+        for i in 0..<cMgNode.labelCount {
+            let labelPoint = mg_node_label_at(mgNodePointer, UInt32(i))!.to(mg_string.self).pointee
+            let labelSwift = labelPoint.asString
+            print("Label \(i) read back out on node convert: \(labelSwift)")
+            strings.append(labelSwift)
         }
-
-        return swiftArray
+        
+        return strings
     }
-
-    static func mg_stringCArrayToSwiftArray(mg_stringCArrayPointer: OpaquePointer, itemCount: Int) -> Array<String> {
-        let mgStringArray = mg_stringCArrayToMgStringSwiftArray(mg_stringCArrayPointer: mg_stringCArrayPointer, itemCount: itemCount)
-        let stringArray = mgStringArray.map { $0.asString }
-        return stringArray
-    }
+    
+//    /// Converts a c pointer to an array or mg_strings to a Swift array of mg_strings. Only used internally, you should use mg_stringCArrayToSwiftArray instead which returns array of swift strings
+//    /// - Parameters:
+//    ///   - mg_stringCArrayPointer: pointer to the mg_string array in C
+//    ///   - itemCount: no of items in the array
+//    /// - Returns: a Swift Array of mg_string objects
+//    internal static func mg_stringCArrayToMgStringSwiftArray(mg_stringCArrayPointer: OpaquePointer, itemCount: Int) -> Array<mg_string> {
+//        let mgStringStartPointer = UnsafeMutablePointer<mg_string>(mg_stringCArrayPointer)
+//        let labelsBufferPointer = UnsafeMutableBufferPointer(start: mgStringStartPointer, count: itemCount)
+//
+//        var swiftArray = Array<mg_string>()
+//
+//        for i in 0..<itemCount {
+//            guard let x = labelsBufferPointer.baseAddress?.advanced(by: Int(i)) else { continue }
+//            swiftArray.append(x.pointee)
+//        }
+//
+//        return swiftArray
+//    }
+//
+//    static func mg_stringCArrayToSwiftArray(mg_stringCArrayPointer: OpaquePointer, itemCount: Int) -> Array<String> {
+//        let mgStringArray = mg_stringCArrayToMgStringSwiftArray(mg_stringCArrayPointer: mg_stringCArrayPointer, itemCount: itemCount)
+//        let stringArray = mgStringArray.map { $0.asString }
+//        return stringArray
+//    }
     
     internal static func mgListCArrayToMgListSwiftArray(mgListCArrayPointer: OpaquePointer) -> Array<c_mg_value> {
         let mgListPointer = UnsafePointer<mg_list>(mgListCArrayPointer)

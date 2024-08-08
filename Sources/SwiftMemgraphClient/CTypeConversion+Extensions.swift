@@ -80,6 +80,22 @@ extension c_mg_list {
 }
 
 extension c_mg_map {
+    
+    // Function to convert Swift Dictionary to mg_map
+    public static func from(_ dictionary: [String: QueryParam]) -> UnsafeMutablePointer<mg_map>? {
+   
+        let size = UInt32(dictionary.count)
+        var mg_map = mg_map_make_empty(size)
+    
+        for (key, val) in dictionary {
+            var val = val
+            let op = OpaquePointer(withUnsafeMutablePointer(to: &val, { $0 }))
+            mg_map_insert(mg_map, key.asCStr, op)
+        }
+        
+        return UnsafeMutablePointer(mg_map)
+    }
+    
     var asDictionary: [String: Value] {
         CToSwiftConverter.mgMapToStringCMgValueSwiftDictionary(mgMapCPointer: self.opaquePointer)
     }

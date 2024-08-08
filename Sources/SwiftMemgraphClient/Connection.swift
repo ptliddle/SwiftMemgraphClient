@@ -171,7 +171,7 @@ open class Connection {
         }
         
         if let trustCallback = params.trustCallback {
-            print("In trust callback code")
+            fatalError("Need to implement trust callback capability")
 //            trustCallbackPtr = Unmanaged.passRetained(trustCallback as AnyObject).toOpaque()
 //            mg_session_params_set_trust_data(mgSessionParams, trustCallbackPtr)
 //            let trustCallbackWrapperPointer: TrustCallbackType = trustCallbackWrapper(host:ipAddress:keyType:fingerprint:funRaw:)
