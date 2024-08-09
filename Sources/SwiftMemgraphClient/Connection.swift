@@ -89,7 +89,7 @@ open class Connection {
     
     private var resultsIter: IndexingIterator<[Record]>?
 
-    public init(mgSession: OpaquePointer?,
+    private init(mgSession: OpaquePointer?,
                 lazy: Bool,
                 autocommit: Bool,
                 status: ConnectionStatus,
