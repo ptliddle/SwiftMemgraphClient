@@ -17,6 +17,9 @@ let mgClientVersion = "\"1.4.1\""
 
 let package = Package(
     name: "SwiftMemgraphClient",
+    platforms: [
+        .macOS(.v10_15),
+    ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(name: "Cmgclient", targets: ["Cmgclient"]),
@@ -24,7 +27,7 @@ let package = Package(
     ],
     dependencies: [
         // Add the OpenSSL package dependency
-        .package(url: "https://github.com/krzyzanowskim/OpenSSL.git", from: "1.0.0")
+        .package(url: "https://github.com/krzyzanowskim/OpenSSL-Package.git", from: "3.3.1000")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -33,7 +36,7 @@ let package = Package(
             name: "Cmgclient",
             dependencies: [
                 // Link the OpenSSL package to your target
-                .product(name: "OpenSSL", package: "OpenSSL")
+                .product(name: "OpenSSL", package: "OpenSSL-Package")
             ],
             path: "Sources/Cmgclient",
             exclude: [
@@ -78,7 +81,10 @@ let package = Package(
         ),
         .target(
             name: "SwiftMemgraphClient",
-            dependencies: ["Cmgclient"]
+            dependencies: [
+                "Cmgclient",
+                .product(name: "OpenSSL", package: "OpenSSL-Package")
+            ]
         ),
         .testTarget(
             name: "SwiftMemgraphClientTests",
